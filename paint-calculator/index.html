@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Färgkalkylator</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --text: #1f2933;
+    --muted: #6b7785;
+    --border: #d5dbe1;
+    --accent: #1a5fb4;
+    --accent-text: #ffffff;
+    --result-bg: #f2f6fb;
+    --warn: #b42318;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--text);
+    line-height: 1.45;
+  }
+  .calc { max-width: 640px; margin: 0 auto; padding: 16px; }
+  h2 { margin: 0 0 4px; font-size: 1.4rem; }
+  .intro { margin: 0 0 20px; color: var(--muted); font-size: .95rem; }
+  fieldset { border: 1px solid var(--border); border-radius: var(--radius); margin: 0 0 16px; padding: 14px 16px 6px; }
+  legend { padding: 0 6px; font-weight: 600; font-size: .95rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 10px; }
+  label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 4px; }
+  input[type="number"], select {
+    width: 100%; padding: 10px; font-size: 1rem; color: var(--text);
+    border: 1px solid var(--border); border-radius: var(--radius); background: #fff;
+  }
+  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .check { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; font-size: .95rem; color: var(--text); }
+  .check input { width: 18px; height: 18px; }
+  .hint { font-size: .8rem; color: var(--muted); margin: 0 0 10px; }
+  button {
+    width: 100%; padding: 12px; font-size: 1rem; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: var(--accent-text); border: 0; border-radius: var(--radius);
+  }
+  button:hover { filter: brightness(1.08); }
+  .result { margin-top: 20px; padding: 18px; background: var(--result-bg); border-radius: var(--radius); display: none; }
+  .result.show { display: block; }
+  .big { font-size: 2rem; font-weight: 700; margin: 0; }
+  .big small { font-size: 1rem; font-weight: 500; color: var(--muted); }
+  .result p { margin: 6px 0; }
+  .cans { margin: 10px 0 0; padding: 0; list-style: none; }
+  .cans li { padding: 6px 0; border-top: 1px solid var(--border); }
+  .cans li:first-child { border-top: 0; }
+  .error { color: var(--warn); font-weight: 600; margin: 8px 0 0; display: none; }
+  .error.show { display: block; }
+  .note { font-size: .8rem; color: var(--muted); margin-top: 12px; }
+</style>
+</head>
+<body>
+<div class="calc" id="calc">
+  <h2>Färgkalkylator</h2>
+  <p class="intro">Räkna ut hur mycket färg du behöver utifrån rummets mått.</p>
+
+  <form id="form" novalidate>
+    <fieldset>
+      <legend>Rummets mått</legend>
+      <div class="grid">
+        <div><label for="length">Längd (m)</label><input type="number" id="length" min="0" step="0.1" value="4" inputmode="decimal"></div>
+        <div><label for="width">Bredd (m)</label><input type="number" id="width" min="0" step="0.1" value="3.5" inputmode="decimal"></div>
+        <div><label for="height">Takhöjd (m)</label><input type="number" id="height" min="0" step="0.1" value="2.5" inputmode="decimal"></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Dörrar och fönster</legend>
+      <div class="grid">
+        <div><label for="doors">Antal dörrar</label><input type="number" id="doors" min="0" step="1" value="1" inputmode="numeric"></div>
+        <div><label for="windows">Antal fönster</label><input type="number" id="windows" min="0" step="1" value="1" inputmode="numeric"></div>
+      </div>
+      <p class="hint">Vi räknar bort 1,8 m² per dörr och 1,5 m² per fönster.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Färg och yta</legend>
+      <label class="check"><input type="checkbox" id="ceiling"> Måla taket också</label>
+      <div class="grid">
+        <div>
+          <label for="surface">Typ av yta</label>
+          <select id="surface">
+            <option value="1">Tidigare målad, slät yta</option>
+            <option value="0.8">Ny eller omålad yta (sugande)</option>
+            <option value="0.85">Grov eller strukturerad yta</option>
+          </select>
+        </div>
+        <div><label for="coats">Antal strykningar</label>
+          <select id="coats"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option></select>
+        </div>
+        <div><label for="coverage">Täckning (m² per liter)</label><input type="number" id="coverage" min="1" step="0.5" value="10" inputmode="decimal"></div>
+      </div>
+      <p class="hint">Täckningen står på burken. Vanligt för väggfärg är 8–12 m²/liter.</p>
+    </fieldset>
+
+    <button type="submit">Beräkna</button>
+    <p class="error" id="error" role="alert"></p>
+  </form>
+
+  <div class="result" id="result" aria-live="polite">
+    <p class="big"><span id="liters">0</span> <small>liter färg</small></p>
+    <p id="areaText"></p>
+    <p><strong>Förslag på förpackningar:</strong></p>
+    <ul class="cans" id="cans"></ul>
+    <p class="note">Beräkningen är en uppskattning. Köp gärna lite extra för bättre marginal och senare lagning.</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  var DOOR_AREA = 1.8, WINDOW_AREA = 1.5, MARGIN = 1.0; // MARGIN: 1.0 = ingen extra marginal
+  var CAN_SIZES = [10, 5, 2.5, 1];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var fmt = function (n, d) {
+    return n.toLocaleString('sv-SE', { minimumFractionDigits: d, maximumFractionDigits: d });
+  };
+  var num = function (id) { var v = parseFloat($(id).value.replace(',', '.')); return isNaN(v) ? 0 : v; };
+
+  // Hitta kombination av burkar som täcker behovet med minst överskott, därefter minst antal burkar
+  function bestCans(needed) {
+    var best = null;
+    var maxA = Math.ceil(needed / 10);
+    for (var a = 0; a <= maxA; a++)
+      for (var b = 0; b <= 2; b++)
+        for (var c = 0; c <= 3; c++)
+          for (var d = 0; d <= 4; d++) {
+            var total = a * 10 + b * 5 + c * 2.5 + d;
+            if (total + 1e-9 < needed) continue;
+            var count = a + b + c + d;
+            if (!best || total < best.total - 1e-9 || (Math.abs(total - best.total) < 1e-9 && count < best.count)) {
+              best = { a: a, b: b, c: c, d: d, total: total, count: count };
+            }
+          }
+    return best;
+  }
+
+  function showError(msg) {
+    var el = $('error');
+    el.textContent = msg;
+    el.className = msg ? 'error show' : 'error';
+    $('result').className = 'result';
+    resize();
+  }
+
+  function calculate() {
+    var l = num('length'), w = num('width'), h = num('height');
+    var doors = Math.max(0, Math.round(num('doors')));
+    var windows = Math.max(0, Math.round(num('windows')));
+    var coats = parseInt($('coats').value, 10);
+    var coverage = num('coverage');
+    var surfaceFactor = parseFloat($('surface').value);
+
+    if (l <= 0 || w <= 0 || h <= 0) { showError('Fyll i längd, bredd och takhöjd.'); return; }
+    if (coverage <= 0) { showError('Fyll i färgens täckning (m² per liter).'); return; }
+
+    var walls = 2 * (l + w) * h;
+    var openings = doors * DOOR_AREA + windows * WINDOW_AREA;
+    var wallArea = walls - openings;
+    if (wallArea <= 0) { showError('Dörrar och fönster är större än väggytan. Kontrollera måtten.'); return; }
+
+    var ceilingArea = $('ceiling').checked ? l * w : 0;
+    var area = wallArea + ceilingArea;
+    var effectiveCoverage = coverage * surfaceFactor;
+    var liters = (area * coats / effectiveCoverage) * MARGIN;
+
+    showError('');
+    $('liters').textContent = fmt(liters, 1);
+    $('areaText').textContent = 'Målningsyta: ' + fmt(area, 1) + ' m² × ' + coats + ' strykning' + (coats > 1 ? 'ar' : '') + '.';
+
+    var best = bestCans(liters);
+    var items = [];
+    if (best.a) items.push(best.a + ' × 10 liter');
+    if (best.b) items.push(best.b + ' × 5 liter');
+    if (best.c) items.push(best.c + ' × 2,5 liter');
+    if (best.d) items.push(best.d + ' × 1 liter');
+    var list = $('cans');
+    list.innerHTML = '';
+    items.forEach(function (t) { var li = document.createElement('li'); li.textContent = t; list.appendChild(li); });
+    var summary = document.createElement('li');
+    summary.textContent = 'Totalt ' + fmt(best.total, 1) + ' liter (' + fmt(best.total - liters, 1) + ' liter över)';
+    list.appendChild(summary);
+
+    $('result').className = 'result show';
+    resize();
+  }
+
+  // Meddela förälderfönstret om höjden (ofarligt om det inte lyssnar)
+  function resize() {
+    try {
+      var h = document.documentElement.scrollHeight;
+      window.parent.postMessage({ type: 'paint-calculator-resize', height: h }, '*');
+    } catch (e) {}
+  }
+
+  $('form').addEventListener('submit', function (e) { e.preventDefault(); calculate(); });
+  window.addEventListener('load', resize);
+  window.addEventListener('resize', resize);
+})();
+</script>
+</body>
+</html>
